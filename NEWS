@@ -1,3 +1,10 @@
+Version 0.9-0 (2022-09-10)
+
+o Complete overhaul, using `roxygen2` for documentation
+o Expand README, now with better examples
+o Added package `vignette("uni-vs-multi")`
+o Document the formulas used in calculations in `mvfluence-package.R`
+
 Version 0.8-3 (2018-05-16)
 
 o update mvinfluence-package.Rd using utils::promptPackage to conform to avoid hard-wired DESCRIPTION metadata

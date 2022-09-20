@@ -1,0 +1,143 @@
+#' Influence Measures and Diagnostic Plots for Multivariate Linear Models
+#' 
+#' Functions in this package compute regression deletion diagnostics for multivariate linear 
+#' models following methods proposed by Barrett & Ling (1992) and provide some associated diagnostic plots.  
+#' 
+#' The design goal for this package is that, as an extension of standard methods for univariate linear models, you should be able to fit a linear model with a multivariate response,
+#' \preformatted{
+#'   mymlm <- lm( cbind(y1, y2, y3) ~ x1 + x2 + x3, data=mydata)
+#' }
+#' and then get useful diagnostics and plots with
+#' \preformatted{
+#'   influence(mymlm)
+#'   hatvalues(mymlm)
+#'   influencePlot(mymlm, ...)  
+#' }
+#'
+#' The diagnostic measures include hat-values (leverages), generalized Cook's distance and
+#' generalized squared 'studentized' residuals.  Several types of plots to detect 
+#' influential observations are provided.
+#' 
+#' In addition, the functions provide diagnostics for deletion of subsets of observations 
+#' of size \code{m>1}. This case is theoretically interesting because sometimes pairs (\code{m=2}) 
+#' of influential observations can mask each other, sometimes they can have joint influence 
+#' far exceeding their individual effects, as well as other interesting phenomena described 
+#' by Lawrence (1995). Associated methods for the case \code{m>1} are still under development in this package.
+#' 
+#' The main function in the package is the S3 method, \code{\link{influence.mlm}}, a simple wrapper for
+#' \code{\link{mlm.influence}}, which does the actual computations.
+#' This design was dictated by that used in the \pkg{stats} package, which provides
+#' the generic method \code{\link[stats]{influence}} and methods
+#' \code{\link[stats]{influence.lm}} and \code{\link[stats]{influence.glm}}. The \pkg{car} package extends this to include
+#' \code{\link[car]{influence.lme}} for models fit by \code{\link[nlme]{lme}}.
+#' 
+#' The following sections describe the notation and measures used in the calculations.
+#' 
+#' @section Notation:
+#' 
+#' Let \eqn{\mathbf{X}} be the model matrix in the multivariate linear model, 
+#' \eqn{\mathbf{Y}_{n \times p} = \mathbf{X}_{n \times r} \mathbf{\beta}_{r \times p} + \mathbf{E}_{n \times p}}.
+#' The usual least squares estimate of \eqn{\mathbf{\beta}} is given by
+#' \eqn{\mathbf{B} = (\mathbf{X}^{T} \mathbf{X})^{-1}  \mathbf{X}^{T} \mathbf{Y}}.
+#' 
+#' Then let 
+#'   \itemize{
+#'      \item \eqn{\mathbf{X}_I} be the submatrix of \eqn{\mathbf{X}} whose \eqn{m} rows are indexed by \eqn{I},
+#'      \item \eqn{\mathbf{X}_{(I)}} is the complement, the submatrix of \eqn{\mathbf{X}} with the \eqn{m} rows in \eqn{I} deleted,
+#'   }
+#'  
+#'  Matrices \eqn{\mathbf{Y}_I}, \eqn{\mathbf{Y}_{(I)}} are defined similarly. 
+#'  
+#'  In the calculation of regression coefficients,
+#'  \eqn{\mathbf{B}_{(I)} = (\mathbf{X}_{(I)}^{T} \mathbf{X}_{(I)})^{-1} \mathbf{X}_{(I)}^{T} \mathbf{Y}_{I}} are the estimated 
+#'  coefficients
+#'  when the cases indexed by \eqn{I} have been removed. The corresponding residuals are
+#'  \eqn{\mathbf{E}_{(I)} = \mathbf{Y}_{(I)} - \mathbf{X}_{(I)} \mathbf{B}_{(I)}}.
+#'  
+#' @section Measures:
+#'  
+#'  The influence measures defined by Barrett & Ling (1992) are functions of two matrices \eqn{\mathbf{H}_I} and \eqn{\mathbf{Q}_I}
+#'  defined as follows:
+#'    \itemize{
+#'       \item For the full data set, the \dQuote{hat matrix}, \eqn{\mathbf{H}}, is given by
+#'             \eqn{\mathbf{H} = \mathbf{X} (\mathbf{X}^{T} \mathbf{X})^{-1} \mathbf{X}^{T} },
+#'       \item \eqn{\mathbf{H}_I} is \eqn{m \times m} the submatrix of \eqn{\mathbf{H}} corresponding to the index set \eqn{I},
+#'             \eqn{\mathbf{H}_I = \mathbf{X} (\mathbf{X}_I^{T} \mathbf{X}_I)^{-1} \mathbf{X}^{T} },
+#'       \item \eqn{\mathbf{Q}} is the analog of \eqn{\mathbf{H}} defined for the residual matrix \eqn{\mathbf{E}}, that is,
+#'             \eqn{\mathbf{Q} = \mathbf{E} (\mathbf{E}^{T} \mathbf{E})^{-1} \mathbf{E}^{T} }, with corresponding submatrix
+#'             \eqn{\mathbf{Q}_I = \mathbf{E} (\mathbf{E}_I^{T} \mathbf{E}_I)^{-1} \mathbf{E}^{T} },
+#'    }
+#'    
+#' @section Cook's distance:
+#'  
+#'  In these terms, Cook's distance is defined for a univariate response by
+#'  \deqn{D_I = (\mathbf{b} - \mathbf{b}_{(I)})^T (\mathbf{X}^T \mathbf{X}) (\mathbf{b} - \mathbf{b}_{(I)}) / p s^2 \; ,} 
+#'  a measure of the squared distance between the coefficients \eqn{\mathbf{b}} for the full data set and those
+#'  \eqn{\mathbf{b}_{(I)}} 
+#'  obtained when the cases in \eqn{I} are deleted.  
+#'  
+#'  In the multivariate case, Cook's distance is obtained
+#'  by replacing the vector of coefficients \eqn{\mathbf{b}} by \eqn{\mathrm{vec} (\mathbf{B})}, the result of stringing out
+#'  the coefficients for all responses in a single \eqn{n \times p}-length vector.
+#'  \deqn{D_I = \frac{1}{p} [\mathrm{vec} (\mathbf{B} - \mathbf{B}_{(I)})]^T (S_{-1} \otimes \mathbf{X}^T \mathbf{X}) \mathrm{vec} (\mathbf{B} - \mathbf{B}_{(I)})  \; ,} 
+#'  where \eqn{\otimes} is the Kronecker (direct) product and
+#'  \eqn{\mathbf{S} = \mathbf{E}^T \mathbf{E} / (n-p)} is the covariance matrix of the residuals.
+#'
+#' @section Leverage and residual components:
+#'  
+#'  For a univariate response, and when \code{m = 1}, Cook's distance can be re-written as a product of leverage and residual components as
+#'  \deqn{D_i = \left(\frac{n-p}{p} \right) \frac{h_{ii}}{(1 - h_{ii})^2 q_{ii} } \;.}
+#'  
+#'  Then we can define a leverage component \eqn{L_i} and residual component \eqn{R_i} as
+#'  
+#'  \deqn{L_i = \frac{h_{ii}}{1 - h_{ii}} \quad\quad R_i = \frac{q_{ii}}{1 - h_{ii}} \;.} 
+#'  \eqn{R_i} is the studentized residual, and \eqn{D_i \propto L_i \times R_i}.
+#'  
+#'  In the general, multivariate case there are analogous matrix expressions for \eqn{\mathbf{L}} and \eqn{\mathbf{R}}.
+#'  When \code{m > 1}, the quantities \eqn{\mathbf{H}_I}, \eqn{\mathbf{Q}_I}, \eqn{\mathbf{L}_I}, and
+#'  \eqn{\mathbf{R}_I} are \eqn{m \times m} matrices.  Where scalar quantities are needed, the package functions apply
+#'  a function, \code{FUN}, either \code{det()} or \code{tr()} to calculate a measure of \dQuote{size}, as in
+#' \preformatted{
+#'   H <- sapply(x$H, FUN)
+#'   Q <- sapply(x$Q, FUN)
+#'   L <- sapply(x$L, FUN)
+#'   R <- sapply(x$R, FUN)
+#' }
+#'  
+#'  
+#' @docType package
+#' @name mvinfluence
+#' @aliases mvinfluence-package
+#' @references 
+#'    Barrett, B. E. and Ling, R. F. (1992).
+#'      General Classes of Influence Measures for Multivariate Regression.
+#'      \emph{Journal of the American Statistical Association}, \bold{87}(417), 184-191.
+#'
+#'    Barrett, B. E. (2003). Understanding Influence in Multivariate Regression.
+#'      \emph{Communications in Statistics -- Theory and Methods}, \bold{32}, 3, 667-680.
+#'
+#'    A. J. Lawrence (1995).
+#'      Deletion Influence and Masking in Regression.
+#'      \emph{Journal of the Royal Statistical Society. Series B (Methodological)} , \bold{57}, 1, 181-189. 
+#'
+#' 
+#' @importFrom car showLabels influencePlot infIndexPlot influenceIndexPlot
+#' @importFrom heplots trans.colors Mahalanobis
+#' @importFrom grDevices palette
+#' @importFrom graphics abline axis box mtext par plot points text
+#' @importFrom stats cooks.distance hatvalues influence coef model.frame model.matrix
+#' @importFrom stats model.response qbeta qf residuals rstudent
+#' @importFrom utils combn
+#'
+#' @method lrPlot lm
+#'
+#' @method hatvalues mlm
+#' @method cooks.distance mlm
+#' @method influence mlm
+#' @method influencePlot mlm
+#' @method infIndexPlot mlm
+#'
+#' @method print inflmlm
+#' @method as.data.frame inflmlm
+NULL
+
