@@ -17,7 +17,7 @@ library(car)         # Companion to Applied Regression
 library(mvinfluence) # Influence Measures and Diagnostic Plots for Multivariate Linear Models
 library(patchwork)   # The Composer of Plots
 library(rgl)         # 3D Visualization Using OpenGL
-rgl::setupKnitr(autoprint = TRUE)
+rgl::setupKnitr(autoprint = TRUE)    # render rgl plots in a knitr document
 
 ## ----toy-data-----------------------------------------------------------------
 Toy <- tibble(
@@ -51,12 +51,16 @@ Toy.mlm <- lm(cbind(y1, y2) ~ x, data=Toy)
 
 ## ----coefs--------------------------------------------------------------------
 coef(Toy.lm1)
+
 coef(Toy.lm2)
+
 coef(Toy.mlm)
 
 ## ----anovas-------------------------------------------------------------------
 car::Anova(Toy.lm1)
+
 car::Anova(Toy.lm2)
+
 car::Anova(Toy.mlm)
 
 ## ----cooks-distance-----------------------------------------------------------
@@ -67,15 +71,16 @@ df$D12 <- cooks.distance(Toy.mlm)
 
 df
 
-## ----inflplots, fig.show='hold', out.width="45%", out.height="50%", collapse=FALSE----
-ip1 <- car::influencePlot(Toy.lm1, id=list(cex=1.5))
-ip2 <- car::influencePlot(Toy.lm2, id=list(cex=1.5))
+## ----inflplots, fig.show='hold', out.width="45%", out.height="50%", collapse=FALSE, echo=-1----
+par(mar = c(4, 4, 1, 1)+.1)
+ip1 <- car::influencePlot(Toy.lm1, id = list(cex=1.5), cex.lab = 1.5)
+ip2 <- car::influencePlot(Toy.lm2, id = list(cex=1.5), cex.lab = 1.5)
 
-## ----inflplot-mlm, fig.width=5, fig.height=4, fig.align='center'--------------
+## ----inflplot-mlm, fig.width=5, fig.height=4, fig.align='center', echo=-1-----
 par(mar = c(4,4,1,1)+.1)
 influencePlot(Toy.mlm, id.n=2)
 
-## ----inflplot-mlm-lr, fig.width=5, fig.height=4, fig.align='center', results='hide'----
+## ----inflplot-mlm-lr, fig.width=5, fig.height=4, fig.align='center', results='hide', echo=-1----
 par(mar = c(4,4,1,1)+.1)
 influencePlot(Toy.mlm, id.n=2, type = 'LR')
 
@@ -99,4 +104,24 @@ gg2 <- ggplot(data = db2, aes(x=`(Intercept)`, y=x, label=rownames(db2))) +
   theme_bw(base_size = 16)
 
 gg1 + gg2
+
+## ----cor----------------------------------------------------------------------
+with(Toy, cor(y1, y2))
+
+## ----cov2cor------------------------------------------------------------------
+(corr <- cov2cor(vcov(Toy.mlm)))
+
+## ----confEllipse, fig.show='hold', out.width="45%", out.height="50%", collapse=FALSE----
+par(mar = c(4, 4, 1, 1)+.1)
+car::confidenceEllipse(Toy.mlm, which=c(1,3), levels = 0.68,
+                       xlab = row.names(corr)[1], 
+                       ylab=row.names(corr)[3],
+                       fill = TRUE, fill.alpha = 0.2,
+                       cex.lab = 1.5)
+
+car::confidenceEllipse(Toy.mlm, which=c(2,4), levels = 0.68,
+                       xlab = row.names(corr)[2], 
+                       ylab=row.names(corr)[4],
+                       fill = TRUE, fill.alpha = 0.2,
+                       cex.lab = 1.5)
 
